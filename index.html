@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>📅 ปฏิทินงาน</title>
+
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css' rel='stylesheet' />
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales-all.min.js'></script>
+
+<style>
+body { font-family: 'Prompt', sans-serif; background: #fff; color: #c00; margin: 0; padding: 0; }
+header { background: #c00; color: #fff; display:flex; justify-content:space-between; align-items:center; padding:12px 20px; flex-wrap:wrap; position:sticky; top:0; z-index:10; }
+header .logo { font-weight:bold; font-size:18px; }
+header nav a { color:#fff; background:#a00; padding:6px 14px; border-radius:6px; font-weight:bold; text-decoration:none; transition:0.3s; margin-left:8px; }
+header nav a:hover { background:#800; }
+h2 { text-align:center; margin:15px 10px; color:#c00; font-size:20px; }
+.search-box { max-width:1000px; margin:10px auto; text-align:right; padding:0 10px; }
+.search-box input { padding:6px 10px; border:1px solid #c00; border-radius:6px; font-size:14px; width:220px; }
+#calendar { max-width:1000px; margin:20px auto 40px auto; border:2px solid #c00; border-radius:12px; padding:10px; background:#fff; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+.fc .fc-toolbar-title { color:#c00; font-weight:bold; font-size:18px; }
+.fc .fc-daygrid-event { background:#c00 !important; color:#fff !important; border-radius:6px; padding:4px 6px; font-size:0.9em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fc .fc-button-primary { background:#c00; border:none; color:#fff; border-radius:6px; font-size:13px; padding:5px 10px; }
+.fc .fc-button-primary:hover { background:#a00; }
+footer { background:#c00; color:#fff; text-align:center; padding:12px 20px; font-size:14px; }
+@media (max-width:600px){ #calendar{padding:5px;} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">📅 ปฏิทินงาน</div>
+  <nav><a href="login.html">เข้าสู่ระบบ Admin</a></nav>
+</header>
+
+<h2>📅 ระบบจองบุคคลออกปฏิบัติงาน</h2>
+<div class="search-box">
+  🔎 <input type="text" id="searchInput" placeholder="ค้นหาชื่อหรือสถานที่...">
+</div>
+
+<div id="calendar"></div>
+<footer>© 2025 ระบบจองบุคคลออกปฏิบัติงาน | AUTODIDACTIC</footer>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+
+// Firebase config
+const firebaseConfig = {
+ apiKey: "AIzaSyCnvtWmRqERXTmMzOoOyjo_ViSBKwpLrmw",
+ authDomain: "events-9cc52.firebaseapp.com",
+ projectId: "events-9cc52",
+ storageBucket: "events-9cc52.firebasestorage.app",
+ messagingSenderId: "425264247291",
+ appId: "1:425264247291:web:dcb45431fa01c05a411b5e",
+ measurementId: "G-JCE5CGRH3V"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let allEvents = []; // เก็บทุก Event
+
+document.addEventListener('DOMContentLoaded', async function(){
+  const calendarEl = document.getElementById('calendar');
+  const calendar = new FullCalendar.Calendar(calendarEl, {
+    initialView: window.innerWidth < 600 ? 'listWeek' : 'dayGridMonth',
+    locale: 'th',
+    headerToolbar: { left:'prev,next today', center:'title', right: window.innerWidth<600?'':'dayGridMonth,listWeek' },
+    eventContent:function(arg){
+      let el = document.createElement('div');
+      el.innerHTML = "<strong>"+arg.event.title+"</strong><br><small>"+(arg.event.extendedProps.location||"")+"</small>";
+      return {domNodes:[el]};
+    },
+    eventClick:function(info){
+      alert("รายละเอียดงาน:\nชื่อ: "+info.event.title+
+            "\nสถานที่: "+info.event.extendedProps.location+
+            "\nวันที่เริ่ม: "+info.event.startStr+
+            "\nวันที่สิ้นสุด: "+(info.event.endStr ? info.event.endStr.substr(0,10) : info.event.startStr));
+    }
+  });
+
+  // โหลด event จาก Firebase
+  try {
+    const snapshot = await getDocs(collection(db,"events"));
+    snapshot.forEach(doc=>{
+      const data = doc.data();
+      allEvents.push({
+        id: doc.id,
+        title: data.title || "",
+        start: data.start || "",
+        end: data.end || "",
+        location: data.location || ""
+      });
+    });
+    calendar.addEventSource(allEvents);
+    calendar.render();
+  } catch(err){
+    console.error("โหลดข้อมูล Firebase ไม่สำเร็จ:",err);
+    calendar.render();
+  }
+
+  // Filter แบบ real-time และเลื่อนไป Event แรก
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', function(){
+    const query = this.value.toLowerCase();
+    const filtered = allEvents.filter(ev =>
+      ev.title.toLowerCase().includes(query) ||
+      (ev.location && ev.location.toLowerCase().includes(query))
+    );
+    calendar.removeAllEventSources();
+    calendar.addEventSource(filtered);
+
+    if(filtered.length > 0){
+      // เลื่อนไปวันที่เริ่ม Event แรก
+      calendar.gotoDate(filtered[0].start);
+    }
+  });
+});
+</script>
+
+</body>
+</html>
