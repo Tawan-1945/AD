@@ -10,21 +10,68 @@
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales-all.min.js'></script>
 
 <style>
-body { font-family: 'Prompt', sans-serif; background: #fff; color: #c00; margin: 0; padding: 0; }
-header { background: #c00; color: #fff; display:flex; justify-content:space-between; align-items:center; padding:12px 20px; flex-wrap:wrap; position:sticky; top:0; z-index:10; }
+body {
+  font-family: 'Prompt', sans-serif;
+  background: #fff;
+  color: #c00;
+  margin: 0;
+  padding: 0;
+}
+
+header {
+  background: #c00;
+  color: #fff;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:12px 20px;
+  flex-wrap:wrap;
+  position:sticky;
+  top:0;
+  z-index:10;
+}
 header .logo { font-weight:bold; font-size:18px; }
-header nav a { color:#fff; background:#a00; padding:6px 14px; border-radius:6px; font-weight:bold; text-decoration:none; transition:0.3s; margin-left:8px; }
+header nav a {
+  color:#fff; background:#a00; padding:6px 14px;
+  border-radius:6px; font-weight:bold; text-decoration:none;
+  transition:0.3s; margin-left:8px;
+}
 header nav a:hover { background:#800; }
+
 h2 { text-align:center; margin:15px 10px; color:#c00; font-size:20px; }
 .search-box { max-width:1000px; margin:10px auto; text-align:right; padding:0 10px; }
 .search-box input { padding:6px 10px; border:1px solid #c00; border-radius:6px; font-size:14px; width:220px; }
-#calendar { max-width:1000px; margin:20px auto 40px auto; border:2px solid #c00; border-radius:12px; padding:10px; background:#fff; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+
+#calendar {
+  max-width:1000px;
+  margin:20px auto 40px auto;
+  border:2px solid #c00;
+  border-radius:12px;
+  padding:10px;
+  background:#fff;
+  box-shadow:0 4px 12px rgba(0,0,0,0.08);
+  min-height:500px;
+}
+
 .fc .fc-toolbar-title { color:#c00; font-weight:bold; font-size:18px; }
-.fc .fc-daygrid-event { background:#c00 !important; color:#fff !important; border-radius:6px; padding:4px 6px; font-size:0.9em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fc .fc-daygrid-event {
+  background:#c00 !important;
+  color:#fff !important;
+  border-radius:6px;
+  padding:4px 6px;
+  font-size:0.9em;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
 .fc .fc-button-primary { background:#c00; border:none; color:#fff; border-radius:6px; font-size:13px; padding:5px 10px; }
 .fc .fc-button-primary:hover { background:#a00; }
+
 footer { background:#c00; color:#fff; text-align:center; padding:12px 20px; font-size:14px; }
-@media (max-width:600px){ #calendar{padding:5px;} }
+
+@media (max-width:600px){
+  #calendar{padding:5px; min-height:400px;}
+}
 </style>
 </head>
 <body>
@@ -46,33 +93,32 @@ footer { background:#c00; color:#fff; text-align:center; padding:12px 20px; font
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
 import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
-// Firebase config
-const firebaseConfig = {
- apiKey: "AIzaSyCnvtWmRqERXTmMzOoOyjo_ViSBKwpLrmw",
- authDomain: "events-9cc52.firebaseapp.com",
- projectId: "events-9cc52",
- storageBucket: "events-9cc52.firebasestorage.app",
- messagingSenderId: "425264247291",
- appId: "1:425264247291:web:dcb45431fa01c05a411b5e",
- measurementId: "G-JCE5CGRH3V"
-};
+// ใส่ Firebase Config ของคุณเอง
+const firebaseConfig = { /* ... */ };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-let allEvents = []; // เก็บทุก Event
+let allEvents = [];
+let calendar;
 
 document.addEventListener('DOMContentLoaded', async function(){
   const calendarEl = document.getElementById('calendar');
-  const calendar = new FullCalendar.Calendar(calendarEl, {
+  
+  calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: window.innerWidth < 600 ? 'listWeek' : 'dayGridMonth',
     locale: 'th',
-    headerToolbar: { left:'prev,next today', center:'title', right: window.innerWidth<600?'':'dayGridMonth,listWeek' },
-    eventContent:function(arg){
+    height: 'auto',  // ปรับความสูงให้ responsive
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: window.innerWidth < 600 ? '' : 'dayGridMonth,listWeek'
+    },
+    eventContent: function(arg){
       let el = document.createElement('div');
       el.innerHTML = "<strong>"+arg.event.title+"</strong><br><small>"+(arg.event.extendedProps.location||"")+"</small>";
       return {domNodes:[el]};
     },
-    eventClick:function(info){
+    eventClick: function(info){
       alert("รายละเอียดงาน:\nชื่อ: "+info.event.title+
             "\nสถานที่: "+info.event.extendedProps.location+
             "\nวันที่เริ่ม: "+info.event.startStr+
@@ -80,7 +126,6 @@ document.addEventListener('DOMContentLoaded', async function(){
     }
   });
 
-  // โหลด event จาก Firebase
   try {
     const snapshot = await getDocs(collection(db,"events"));
     snapshot.forEach(doc=>{
@@ -96,24 +141,28 @@ document.addEventListener('DOMContentLoaded', async function(){
     calendar.addEventSource(allEvents);
     calendar.render();
   } catch(err){
-    console.error("โหลดข้อมูล Firebase ไม่สำเร็จ:",err);
+    console.error("โหลดข้อมูล Firebase ไม่สำเร็จ:", err);
     calendar.render();
   }
 
-  // Filter แบบ real-time และเลื่อนไป Event แรก
+  // Search แบบ real-time
   const searchInput = document.getElementById('searchInput');
   searchInput.addEventListener('input', function(){
-    const query = this.value.toLowerCase();
-    const filtered = allEvents.filter(ev =>
-      ev.title.toLowerCase().includes(query) ||
-      (ev.location && ev.location.toLowerCase().includes(query))
-    );
-    calendar.removeAllEventSources();
-    calendar.addEventSource(filtered);
-
-    if(filtered.length > 0){
-      // เลื่อนไปวันที่เริ่ม Event แรก
-      calendar.gotoDate(filtered[0].start);
+    const query = this.value.toLowerCase().trim();
+    if(query === "") {
+      calendar.removeAllEventSources();
+      calendar.addEventSource(allEvents);
+      calendar.today(); // กลับไปเดือนปัจจุบัน
+    } else {
+      const filtered = allEvents.filter(ev =>
+        ev.title.toLowerCase().includes(query) ||
+        (ev.location && ev.location.toLowerCase().includes(query))
+      );
+      calendar.removeAllEventSources();
+      calendar.addEventSource(filtered);
+      if(filtered.length > 0){
+        calendar.gotoDate(filtered[0].start);
+      }
     }
   });
 });
